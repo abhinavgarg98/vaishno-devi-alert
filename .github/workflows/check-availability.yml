@@ -4,11 +4,10 @@ name: Check Vaishno Devi availability
 on:
   workflow_dispatch:
   schedule:
-    - cron: "*/10 * * * *"
+    - cron: "3,13,23,33,43,53 * * * *"
 
 permissions:
   contents: read
-  actions: read
 
 concurrency:
   group: vaishno-devi-availability
@@ -31,14 +30,6 @@ jobs:
       - name: Install dependencies
         run: python -m pip install requests
 
-      - name: Restore previous availability
-        uses: actions/cache/restore@v4
-        with:
-          path: previous_dates.json
-          key: previous-dates-${{ github.run_id }}
-          restore-keys: |
-            previous-dates-
-
       - name: Check availability and notify
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
@@ -46,9 +37,3 @@ jobs:
           SHRINE_AUTH_TOKEN: ${{ secrets.SHRINE_AUTH_TOKEN }}
           SHRINE_COOKIE: ${{ secrets.SHRINE_COOKIE }}
         run: python availability_checker.py
-      - name: Save latest availability
-        if: success()
-        uses: actions/cache/save@v4
-        with:
-          path: previous_dates.json
-          key: previous-dates-${{ github.run_id }}
