@@ -32,11 +32,12 @@ jobs:
         run: python -m pip install requests
 
       - name: Restore previous availability
-        uses: actions/download-artifact@v4
+        uses: actions/cache/restore@v4
         with:
-          name: previous-dates
-          path: .
-        continue-on-error: true
+          path: previous_dates.json
+          key: previous-dates-${{ github.run_id }}
+          restore-keys: |
+            previous-dates-
 
       - name: Check availability and notify
         env:
@@ -45,12 +46,9 @@ jobs:
           SHRINE_AUTH_TOKEN: ${{ secrets.SHRINE_AUTH_TOKEN }}
           SHRINE_COOKIE: ${{ secrets.SHRINE_COOKIE }}
         run: python availability_checker.py
-
       - name: Save latest availability
         if: success()
-        uses: actions/upload-artifact@v4
+        uses: actions/cache/save@v4
         with:
-          name: previous-dates
           path: previous_dates.json
-          overwrite: true
-          retention-days: 90
+          key: previous-dates-${{ github.run_id }}
