@@ -1,15 +1,11 @@
 
-import json
 import os
-from pathlib import Path
-
 import requests
 
 API_URL = (
     "https://online.maavaishnodevi.org/"
     "api/v1/eAccommodation/accomSummary"
 )
-STATE_FILE = Path("previous_dates.json")
 
 
 def send_telegram(message):
@@ -40,6 +36,7 @@ def fetch_dates():
         "Referer": "https://online.maavaishnodevi.org/",
         "tof-auth-token": token,
     }
+
     if cookie:
         headers["Cookie"] = cookie
 
@@ -52,12 +49,18 @@ def fetch_dates():
     response.raise_for_status()
 
     data = response.json()
+
+    if not isinstance(data, dict):
+        raise ValueError("API returned an invalid response")
+
     dates = data.get("availableDatesList")
+
     if not isinstance(dates, list):
-        raise ValueError("API response did not contain availableDatesList")
+        raise ValueError(
+            "API response did not contain a valid availableDatesList"
+        )
 
     return sorted(set(str(date) for date in dates))
-
 
 
 def main():
@@ -66,14 +69,16 @@ def main():
     except Exception as e:
         message = (
             "⚠️ Vaishno Devi Accommodation API Failed\n\n"
-            "The API request failed or returned an invalid response.\n"
             "Please check the official website manually.\n\n"
             f"Error: {str(e)[:500]}"
         )
-        send_telegram(message)
-        raise
 
-    if len(dates) == 0:
+        try:
+            send_telegram(message)
+        finally:
+            raise
+
+    if not dates:
         print("No available dates. No Telegram message sent.")
         return
 
@@ -93,4 +98,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
