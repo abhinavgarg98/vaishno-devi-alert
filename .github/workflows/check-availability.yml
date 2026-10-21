@@ -2,9 +2,12 @@
 name: Check Vaishno Devi availability
 
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
   schedule:
     - cron: "3,13,23,33,43,53 * * * *"
+
 
 permissions:
   contents: read
