@@ -1,0 +1,56 @@
+
+name: Check Vaishno Devi availability
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17,47 * * * *"
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: vaishno-devi-availability
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: python -m pip install requests
+
+      - name: Restore previous availability
+        uses: actions/download-artifact@v4
+        with:
+          name: previous-dates
+          path: .
+        continue-on-error: true
+
+      - name: Check availability and notify
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          SHRINE_AUTH_TOKEN: ${{ secrets.SHRINE_AUTH_TOKEN }}
+          SHRINE_COOKIE: ${{ secrets.SHRINE_COOKIE }}
+        run: python availability_checker.py
+
+      - name: Save latest availability
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: previous-dates
+          path: previous_dates.json
+          overwrite: true
+          retention-days: 90
