@@ -59,32 +59,38 @@ def fetch_dates():
     return sorted(set(str(date) for date in dates))
 
 
+
 def main():
-    dates = fetch_dates()
-    previous = None
-
-    if STATE_FILE.exists():
-        previous = json.loads(STATE_FILE.read_text())
-
-    # First run establishes a baseline and sends a report.
-    if previous is None or dates != previous:
-        if dates:
-            body = "\n".join(f"• {date}" for date in dates)
-        else:
-            body = "No available calendar dates were returned."
-
-        send_telegram(
-            "🔔 Vaishno Devi accommodation calendar\n\n"
-            f"Available dates: {len(dates)}\n\n{body}\n\n"
-            "Calendar dates do not guarantee private-room inventory. "
-            "Please verify on the official website."
+    try:
+        dates = fetch_dates()
+    except Exception as e:
+        message = (
+            "⚠️ Vaishno Devi Accommodation API Failed\n\n"
+            "The API request failed or returned an invalid response.\n"
+            "Please check the official website manually.\n\n"
+            f"Error: {str(e)[:500]}"
         )
-        print(f"Availability list changed; {len(dates)} dates reported.")
-    else:
-        print("Availability list unchanged.")
+        send_telegram(message)
+        raise
 
-    STATE_FILE.write_text(json.dumps(dates))
+    if len(dates) == 0:
+        print("No available dates. No Telegram message sent.")
+        return
+
+    date_text = "\n".join(f"• {date}" for date in dates)
+
+    message = (
+        "🔔 Vaishno Devi Accommodation Calendar\n\n"
+        f"Available dates: {len(dates)}\n\n"
+        f"{date_text}\n\n"
+        "Please verify room category and inventory "
+        "on the official website."
+    )
+
+    send_telegram(message)
+    print(f"Sent {len(dates)} available dates to Telegram.")
 
 
 if __name__ == "__main__":
     main()
+
