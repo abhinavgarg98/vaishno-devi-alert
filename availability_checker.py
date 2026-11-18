@@ -1,10 +1,28 @@
 
 import os
 import requests
+from datetime import datetime
+from requests.auth import HTTPBasicAuth
 
 API_URL = (
     "https://online.maavaishnodevi.org/"
     "api/v1/eAccommodation/accomSummary"
+)
+
+# Target date: 6 December 2026
+TARGET_DATE = "2026-12-06"
+
+# Exotel configuration
+EXOTEL_API_URL = (
+    "https://api.exotel.com/v1/Accounts/"
+    "rnmotors1/Calls/connect"
+)
+
+EXOTEL_CALLER_ID = "08047291129"
+
+EXOTEL_FLOW_URL = (
+    "http://my.exotel.com/rnmotors1/"
+    "exoml/start_voice/1390169"
 )
 
 
@@ -19,6 +37,52 @@ def send_telegram(message):
         timeout=20,
     )
     response.raise_for_status()
+
+
+def make_exotel_call():
+    api_key = os.environ["EXOTEL_API_KEY"]
+    api_token = os.environ["EXOTEL_API_TOKEN"]
+    phone_number = os.environ["EXOTEL_PHONE_NUMBER"]
+
+    payload = {
+        "From": phone_number,
+        "CallerId": EXOTEL_CALLER_ID,
+        "CallType": "trans",
+        "Url": EXOTEL_FLOW_URL,
+        "TimeLimit": 60,
+        "TimeOut": 30,
+    }
+
+    response = requests.post(
+        EXOTEL_API_URL,
+        auth=HTTPBasicAuth(api_key, api_token),
+        headers={
+            "Content-Type": "application/x-www-form-urlencoded"
+        },
+        data=payload,
+        timeout=30,
+    )
+
+    response.raise_for_status()
+
+    print("Exotel call request submitted successfully.")
+    print("Exotel response:", response.text)
+
+
+def normalize_date(date_value):
+    """Convert supported date formats to YYYY-MM-DD."""
+
+    date_value = str(date_value).strip()
+
+    for date_format in ("%d-%m-%Y", "%Y-%m-%d"):
+        try:
+            return datetime.strptime(
+                date_value, date_format
+            ).strftime("%Y-%m-%d")
+        except ValueError:
+            continue
+
+    return None
 
 
 def fetch_dates():
@@ -66,6 +130,7 @@ def fetch_dates():
 def main():
     try:
         dates = fetch_dates()
+
     except Exception as e:
         message = (
             "⚠️ Vaishno Devi Accommodation API Failed\n\n"
@@ -78,6 +143,7 @@ def main():
         finally:
             raise
 
+    # ORIGINAL TELEGRAM LOGIC - UNCHANGED
     if not dates:
         print("No available dates. No Telegram message sent.")
         return
@@ -94,6 +160,42 @@ def main():
 
     send_telegram(message)
     print(f"Sent {len(dates)} available dates to Telegram.")
+
+    # EXOTEL LOGIC - ONLY FOR 6 DECEMBER 2026
+    target_available = any(
+        normalize_date(date) == TARGET_DATE
+        for date in dates
+    )
+
+    if target_available:
+        print(
+            "6 December 2026 found! "
+            "Triggering Exotel phone call."
+        )
+
+        try:
+            make_exotel_call()
+
+        except Exception as e:
+            print("Exotel call failed:", str(e))
+
+            try:
+                send_telegram(
+                    "⚠️ 6 December 2026 is available, "
+                    "but Exotel call failed.\n\n"
+                    f"Error: {str(e)[:400]}"
+                )
+            except Exception as telegram_error:
+                print(
+                    "Failed to send Exotel error notification:",
+                    str(telegram_error)
+                )
+
+    else:
+        print(
+            "6 December 2026 not available. "
+            "No Exotel call."
+        )
 
 
 if __name__ == "__main__":
